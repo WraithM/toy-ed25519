@@ -1,0 +1,42 @@
+name:           mimblewimble
+version:        0.1.0
+description:    Please see the README on Github at <https://github.com/WraithM/mimblewimble#readme>
+homepage:       https://github.com/WraithM/mimblewimble#readme
+bug-reports:    https://github.com/WraithM/mimblewimble/issues
+author:         Matthew Wraith
+maintainer:     wraithm@gmail.com
+copyright:      2018 Matthew Wraith
+license:        BSD3
+license-file:   LICENSE
+build-type:     Simple
+cabal-version:  >= 1.10
+
+library
+  hs-source-dirs: src
+  default-language: Haskell2010
+
+  exposed-modules: Crypto.Ed25519
+
+  build-depends: base >=4.7 && < 5
+               , cryptonite
+               , bytestring
+               , memory
+
+executable mimblewimble-exe
+  main-is: Main.hs
+  hs-source-dirs: app
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  default-language: Haskell2010
+
+  build-depends: base >=4.7 && < 5
+               , mimblewimble
+
+test-suite mimblewimble-test
+  type: exitcode-stdio-1.0
+  main-is: Spec.hs
+  hs-source-dirs: test
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
+  default-language: Haskell2010
+
+  build-depends: base >=4.7 && <5
+               , mimblewimble
