@@ -1,3 +1,5 @@
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+
 module Crypto.Ed25519 where
 
 import           Crypto.Hash     (Digest, SHA512, hash)
@@ -71,17 +73,23 @@ identity :: Point
 identity = Point 0 1
 
 
+inverse :: Point -> Point
+inverse (Point x y) = Point (negate x) y
+
+
+instance Monoid Point where
+    mempty = identity
+    mappend = add
+
+
 -- TODO get rid of explicit recursion
-scalarMultiply :: Integral a => a -> Point -> Point
-scalarMultiply 0 _ = identity
-scalarMultiply 1 p = p
-scalarMultiply 2 p = p `add` p
-scalarMultiply e p
-    | odd e     = q' `add` p
-    | otherwise = q'
-  where
-    q = scalarMultiply (e `div` 2) p
-    q' = q `add` q
+scalarMultiply :: (Monoid m, Integral a) => a -> m -> m
+scalarMultiply 0 _ = mempty
+scalarMultiply 1 x = x
+scalarMultiply 2 x = x <> x
+scalarMultiply n x
+    | even n =      scalarMultiply (n `div` 2) (x <> x)
+    | odd n  = x <> scalarMultiply (n `div` 2) (x <> x)
 
 
 isOnCurve :: Point -> Bool
@@ -99,7 +107,7 @@ point x y
 newtype PrivateKey = PrivateKey { k :: ByteString } deriving (Show, Eq)
 
 
-newtype PublicKey = PublicKey Point deriving (Show, Eq)
+newtype PublicKey = PublicKey Point deriving (Show, Eq, Monoid)
 
 
 data Signature = Signature
@@ -110,11 +118,8 @@ data Signature = Signature
 
 privateKey :: ByteString -> Maybe PrivateKey
 privateKey bs
-    | BS.length bs == b
-    = Just PrivateKey
-        { k          = bs
-        }
-    | otherwise = Nothing
+    | BS.length bs == b = Just (PrivateKey bs)
+    | otherwise         = Nothing
   where
     b = 32
 
@@ -146,7 +151,6 @@ publicKey (PrivateKey k) = PublicKey $ lsbHashInt `scalarMultiply` pB
     b = 32
     h = unpack $ sha512 k
     lsbHashInt = fromBytes . pack $ drop b h
-
 
 
 encodePoint :: Point -> ByteString
@@ -189,7 +193,7 @@ sign prvKey@(PrivateKey k) m = Signature pR s
 
 verify :: PublicKey -> Message -> Signature -> Bool
 verify pubKey@(PublicKey a) m (Signature pR s) =
-    s `scalarMultiply` pB == pR `add` (h `scalarMultiply` a)
+    s `scalarMultiply` pB == pR <> (h `scalarMultiply` a)
   where
     h = hram pR pubKey m
 
