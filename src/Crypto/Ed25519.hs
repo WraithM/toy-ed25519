@@ -49,6 +49,10 @@ i :: Integer
 i = expMod 2 ((q - 1) `div` 4) q
 
 
+b :: Int
+b = 32
+
+
 recoverX :: Integer -> Integer
 recoverX y
     | (x*x - xx) `mod` q /= 0 =
@@ -107,7 +111,7 @@ point x y
 newtype PrivateKey = PrivateKey { k :: ByteString } deriving (Show, Eq)
 
 
-newtype PublicKey = PublicKey Point deriving (Show, Eq, Monoid)
+newtype PublicKey = PublicKey { publicKeyPoint :: Point } deriving (Show, Eq, Monoid)
 
 
 data Signature = Signature
@@ -120,12 +124,10 @@ privateKey :: ByteString -> Maybe PrivateKey
 privateKey bs
     | BS.length bs == b = Just (PrivateKey bs)
     | otherwise         = Nothing
-  where
-    b = 32
 
 
 newPrivateKey :: IO PrivateKey
-newPrivateKey = maybe err return . privateKey =<< getRandomBytes 32
+newPrivateKey = maybe err return . privateKey =<< getRandomBytes b
   where err = fail "Something went horribly wrong"
 
 
@@ -139,8 +141,8 @@ fromBytes = BS.foldl' f 0
 toBytes :: Integer -> ByteString
 toBytes = BS.pack . pad . reverse . toDigits
   where
-    pad xs | length xs == 32 = xs
-           | otherwise = replicate (32 - length xs) 0 <> xs
+    pad xs | length xs == b = xs
+           | otherwise = replicate (b - length xs) 0 <> xs
     toDigits 0 = []
     toDigits n = fromIntegral (n `mod` 256) : toDigits (n `div` 256)
 
@@ -148,17 +150,26 @@ toBytes = BS.pack . pad . reverse . toDigits
 publicKey :: PrivateKey -> PublicKey
 publicKey (PrivateKey k) = PublicKey $ lsbHashInt `scalarMultiply` pB
   where
-    b = 32
     h = unpack $ sha512 k
     lsbHashInt = fromBytes . pack $ drop b h
 
 
+-- Uncompressed
 encodePoint :: Point -> ByteString
 encodePoint (Point x y) = toBytes x <> toBytes y
 
 
+-- Uncompressed
 decodePoint :: ByteString -> Point
-decodePoint = Point <$> fromBytes . BS.take 32 <*> fromBytes . BS.drop 32
+decodePoint = Point <$> fromBytes . BS.take b <*> fromBytes . BS.drop b
+
+
+encodePublicKey :: PublicKey -> ByteString
+encodePublicKey = encodePoint . publicKeyPoint
+
+
+decodePublicKey :: ByteString -> PublicKey
+decodePublicKey = PublicKey . decodePoint
 
 
 encodeSignature :: Signature -> ByteString
@@ -166,14 +177,14 @@ encodeSignature (Signature r s) = encodePoint r <> toBytes s
 
 
 decodeSignature :: ByteString -> Signature
-decodeSignature = Signature <$> decodePoint . BS.take 64 <*> fromBytes . BS.drop 64
+decodeSignature = Signature <$> decodePoint . BS.take (2*b) <*> fromBytes . BS.drop (2*b)
 
 
 type Message = ByteString
 
 
 hram :: Point -> PublicKey -> Message -> Integer
-hram pR (PublicKey pubKey) m = fromBytes . sha512Digest $ encodePoint pR <> encodePoint pubKey <> m
+hram pR (PublicKey pubKey) m = sha512Int $ encodePoint pR <> encodePoint pubKey <> m
 
 
 sign :: PrivateKey -> Message -> Signature
@@ -182,11 +193,10 @@ sign prvKey@(PrivateKey k) m = Signature pR s
     pubKey = publicKey prvKey
 
     h = unpack $ sha512 k
-    b = 32
     lsbHashInt = fromBytes . pack $ drop b h
     msbHash = pack $ take b h
 
-    r = fromBytes . sha512Digest $ msbHash <> m
+    r = sha512Int $ msbHash <> m
     pR = r `scalarMultiply` pB
     s = (r + hram pR pubKey m * lsbHashInt) `mod` l
 
@@ -204,3 +214,7 @@ sha512 = hash
 
 sha512Digest :: ByteString -> ByteString
 sha512Digest = convert . sha512
+
+
+sha512Int :: ByteString -> Integer
+sha512Int = fromBytes . sha512Digest

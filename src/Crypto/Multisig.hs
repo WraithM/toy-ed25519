@@ -38,7 +38,6 @@ signMultisig :: PrivateKey  -- ^ Private key for partial signature
 signMultisig (PrivateKey k) (Nonce r) (PublicNonce pR) pubKeys m = PartialSignature s
   where
     h = unpack $ sha512 k
-    b = 32
     lsbHashInt = fromBytes . pack $ drop b h
 
     s = (r + hram pR pubKeys m * lsbHashInt) `mod` l
