@@ -11,7 +11,7 @@ import qualified Data.ByteString as BS
 import           Data.Monoid     ((<>))
 
 
-data Point = Point Integer Integer deriving (Show, Eq)
+data Point = Point Integer Integer deriving (Show, Eq, Ord)
 
 
 expMod :: Integer -> Integer -> Integer -> Integer
@@ -111,7 +111,7 @@ point x y
 newtype PrivateKey = PrivateKey { k :: ByteString } deriving (Show, Eq)
 
 
-newtype PublicKey = PublicKey { publicKeyPoint :: Point } deriving (Show, Eq, Monoid)
+newtype PublicKey = PublicKey { publicKeyPoint :: Point } deriving (Show, Eq, Monoid, Ord)
 
 
 data Signature = Signature
