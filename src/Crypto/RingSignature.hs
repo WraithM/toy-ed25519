@@ -2,18 +2,19 @@
 
 module Crypto.RingSignature where
 
-import           Control.Monad         (replicateM)
-import           Data.ByteArray        (pack, unpack)
-import           Data.Monoid           (Monoid, mconcat, (<>))
-import           System.Random.Shuffle (shuffleM)
+import           Control.Monad   (replicateM)
+import           Data.ByteArray  (pack, unpack)
+import           Data.Function   (on)
+import           Data.List       (sort, sortBy)
+import           Data.Monoid     (Monoid, mconcat, (<>))
 
 import           Crypto.Ed25519
 import           Crypto.Multisig
 
 
 data RingSignature = RingSignature
-    { s         :: Integer
-    , pubKeyhRs :: [(PublicKey, Integer, Point)]
+    { s   :: Integer
+    , hRs :: [(Integer, Point)]
     } deriving (Show, Eq)
 
 
@@ -28,8 +29,11 @@ sign prvKey@(PrivateKey k) pubKeys m = do
     let hRs' = hRs (map (unPublicNonce . snd) ris)
         pRs' = pRs rs hRs'
         hpR = pubKeyhR (publicKey prvKey) pRs'
-    RingSignature (s rs pRs' ris) <$> shuffleM (hpR:hRs')
+    return $ RingSignature (s rs pRs' ris) (map sndTrd $ sortBy (compare `on` fst3) (hpR:hRs'))
   where
+    fst3 (x, _, _) = x
+    sndTrd (_, x, y) = (x, y)
+
     pubKeyhR pubKey pR = (pubKey, hrm pR m, pR)
     hRs = zipWith pubKeyhR pubKeys
 
@@ -43,9 +47,8 @@ sign prvKey@(PrivateKey k) pubKeys m = do
 
 
 verify :: [PublicKey] -> Message -> RingSignature -> Bool
-verify pubKeys m (RingSignature s hRs) = all (`elem` pubKeys) sigPubKeys && all hEq hRs &&
-    s `scalarMultiply` pB == mconcat (map rha hRs)
+verify pubKeys m (RingSignature s hRs) =
+    all hEq hRs && s `scalarMultiply` pB == mconcat (zipWith rha (sort pubKeys) hRs)
   where
-    sigPubKeys = map (\(pk, _, _) -> pk) hRs
-    hEq (_, h, pR) = h == hrm pR m
-    rha (PublicKey pA, h, pR) = pR <> h `scalarMultiply` pA
+    hEq (h, pR) = h == hrm pR m
+    rha (PublicKey pA) (h, pR) = pR <> h `scalarMultiply` pA

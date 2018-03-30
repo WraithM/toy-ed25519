@@ -23,7 +23,6 @@ library
                , cryptonite
                , bytestring
                , memory
-               , random-shuffle
 
 executable toy-ed25519-exe
   main-is: Main.hs
