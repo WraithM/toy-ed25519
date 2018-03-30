@@ -12,15 +12,19 @@ import           Data.Monoid     (Monoid, mconcat, (<>))
 import           Crypto.Ed25519
 
 
-newtype Nonce = Nonce Integer deriving (Show, Eq)
+newtype Nonce = Nonce { unNonce :: Integer } deriving (Show, Eq)
 
 
 newtype PublicNonce = PublicNonce { unPublicNonce :: Point } deriving (Show, Eq, Monoid)
 
 
+randomInteger :: IO Integer
+randomInteger = fromBytes <$> getRandomBytes 16
+
+
 generateNoncePair :: IO (Nonce, PublicNonce)
 generateNoncePair = do
-    n <- fromBytes <$> getRandomBytes 16
+    n <- randomInteger
     return (Nonce n, PublicNonce $ n `scalarMultiply` pB)
 
 

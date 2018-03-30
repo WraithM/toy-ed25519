@@ -17,11 +17,13 @@ library
 
   exposed-modules: Crypto.Ed25519
                  , Crypto.Multisig
+                 , Crypto.RingSignature
 
   build-depends: base >=4.7 && < 5
                , cryptonite
                , bytestring
                , memory
+               , random-shuffle
 
 executable toy-ed25519-exe
   main-is: Main.hs
