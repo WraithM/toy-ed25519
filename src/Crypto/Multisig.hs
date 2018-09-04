@@ -7,7 +7,6 @@ import           Crypto.Random   (getRandomBytes)
 import           Data.ByteArray  (convert, pack, unpack)
 import           Data.ByteString (ByteString)
 import           Data.List       (sort)
-import           Data.Monoid     (Monoid, mconcat, (<>))
 
 import           Crypto.Ed25519
 
@@ -15,16 +14,16 @@ import           Crypto.Ed25519
 newtype Nonce = Nonce { unNonce :: Integer } deriving (Show, Eq)
 
 
-newtype PublicNonce = PublicNonce { unPublicNonce :: Point } deriving (Show, Eq, Monoid)
+newtype PublicNonce = PublicNonce { unPublicNonce :: Point } deriving (Show, Eq, Semigroup, Monoid)
 
 
-randomInteger :: IO Integer
-randomInteger = fromBytes <$> getRandomBytes 16
+randomInteger :: Int -> IO Integer
+randomInteger n = fromBytes <$> getRandomBytes n
 
 
 generateNoncePair :: IO (Nonce, PublicNonce)
 generateNoncePair = do
-    n <- randomInteger
+    n <- randomInteger 16
     return (Nonce n, PublicNonce $ n `scalarMultiply` pB)
 
 

@@ -1,4 +1,4 @@
--- Implementation of https://eprint.iacr.org/2003/067.pdf
+-- | Implementation of https://eprint.iacr.org/2003/067.pdf
 
 module Crypto.RingSignature where
 
@@ -25,7 +25,7 @@ hrm pR m = sha512Int $ encodePoint pR <> m
 sign :: PrivateKey -> [PublicKey] -> Message -> IO RingSignature
 sign prvKey@(PrivateKey k) pubKeys m = do
     ris <- replicateM (length pubKeys) generateNoncePair
-    rs <- randomInteger
+    rs <- randomInteger 16
     let hRs' = hRs (map (unPublicNonce . snd) ris)
         pRs' = pRs rs hRs'
         hpR = pubKeyhR (publicKey prvKey) pRs'

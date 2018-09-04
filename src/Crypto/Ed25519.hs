@@ -8,7 +8,6 @@ import           Data.Bits       (shiftL, shiftR, (.&.), (.|.))
 import           Data.ByteArray  (convert, pack, unpack)
 import           Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
-import           Data.Monoid     ((<>))
 
 
 data Point = Point Integer Integer deriving (Show, Eq, Ord)
@@ -81,9 +80,12 @@ inverse :: Point -> Point
 inverse (Point x y) = Point (negate x) y
 
 
+instance Semigroup Point where
+    (<>) = add
+
+
 instance Monoid Point where
     mempty = identity
-    mappend = add
 
 
 -- TODO get rid of explicit recursion
@@ -111,7 +113,7 @@ point x y
 newtype PrivateKey = PrivateKey { k :: ByteString } deriving (Show, Eq)
 
 
-newtype PublicKey = PublicKey { publicKeyPoint :: Point } deriving (Show, Eq, Monoid, Ord)
+newtype PublicKey = PublicKey { publicKeyPoint :: Point } deriving (Show, Eq, Semigroup, Monoid, Ord)
 
 
 data Signature = Signature
