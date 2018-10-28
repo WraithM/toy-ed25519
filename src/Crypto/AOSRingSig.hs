@@ -47,7 +47,7 @@ sign' m prvKey pubKeys = AOSRingSignature e0 ss
     sj = (a - ej * privateKeyKey prvKey) `mod` l
 
     lastKey = fst $ last pubKeys
-    e0 = snd . head $ keyFirst fst lastKey $ ejs <> [(keyjm1, ej)]
+    e0 = snd . head $ keyFirst fst lastKey $ (keyjm1, ej):ejs
 
     firstKey = fst $ head pubKeys
     ss = map snd $ keyFirst fst firstKey $ (pubKey, sj):restKeys
