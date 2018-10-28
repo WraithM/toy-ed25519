@@ -38,8 +38,8 @@ l :: Integer
 l = 2 ^ 252 + 27742317777372353535851937790883648493
 
 
-pB :: Point
-pB = Point (recoverX y `mod` q) (y `mod` q)
+pG :: Point
+pG = Point (recoverX y `mod` q) (y `mod` q)
   where
     y = 4 * inv 5
 
@@ -98,6 +98,12 @@ scalarMultiply n x
     | odd n  = x <> scalarMultiply (n `div` 2) (x <> x)
 
 
+infixl 7 .*
+(.*) :: Integer -> Point -> Point
+n .* x | n < 0 = inverse $ abs n .* x
+n .* x = scalarMultiply n x
+
+
 isOnCurve :: Point -> Bool
 isOnCurve (Point x y) = (y*y - x*x - 1 - d*x*x*y*y) `mod` q == 0
 
@@ -133,6 +139,20 @@ newPrivateKey = maybe err return . privateKey =<< getRandomBytes b
   where err = fail "Something went horribly wrong"
 
 
+privateKeyKey :: PrivateKey -> Integer
+privateKeyKey (PrivateKey k) = lsbHashInt
+  where
+    h = unpack $ sha512 k
+    lsbHashInt = fromBytes . pack $ drop b h
+
+
+privateKeyNonce :: PrivateKey -> ByteString
+privateKeyNonce (PrivateKey k) = msbHash
+  where
+    h = unpack $ sha512 k
+    msbHash = pack $ take b h
+
+
 fromBytes :: ByteString -> Integer
 fromBytes = BS.foldl' f 0
   where
@@ -150,10 +170,7 @@ toBytes = BS.pack . pad . reverse . toDigits
 
 
 publicKey :: PrivateKey -> PublicKey
-publicKey (PrivateKey k) = PublicKey $ lsbHashInt `scalarMultiply` pB
-  where
-    h = unpack $ sha512 k
-    lsbHashInt = fromBytes . pack $ drop b h
+publicKey k = PublicKey $ privateKeyKey k .* pG
 
 
 -- Uncompressed
@@ -190,22 +207,18 @@ hram pR (PublicKey pubKey) m = sha512Int $ encodePoint pR <> encodePoint pubKey 
 
 
 sign :: PrivateKey -> Message -> Signature
-sign prvKey@(PrivateKey k) m = Signature pR s
+sign prvKey m = Signature pR s
   where
     pubKey = publicKey prvKey
 
-    h = unpack $ sha512 k
-    lsbHashInt = fromBytes . pack $ drop b h
-    msbHash = pack $ take b h
-
-    r = sha512Int $ msbHash <> m
-    pR = r `scalarMultiply` pB
-    s = (r + hram pR pubKey m * lsbHashInt) `mod` l
+    r = sha512Int $ privateKeyNonce prvKey <> m
+    pR = r .* pG
+    s = (r + hram pR pubKey m * privateKeyKey prvKey) `mod` l
 
 
 verify :: PublicKey -> Message -> Signature -> Bool
 verify pubKey@(PublicKey a) m (Signature pR s) =
-    s `scalarMultiply` pB == pR <> (h `scalarMultiply` a)
+    s .* pG == pR <> h .* a
   where
     h = hram pR pubKey m
 

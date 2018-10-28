@@ -24,7 +24,7 @@ randomInteger n = fromBytes <$> getRandomBytes n
 generateNoncePair :: IO (Nonce, PublicNonce)
 generateNoncePair = do
     n <- randomInteger 16
-    return (Nonce n, PublicNonce $ n `scalarMultiply` pB)
+    return (Nonce n, PublicNonce $ n .* pG)
 
 
 combineNonces :: [PublicNonce] -> PublicNonce

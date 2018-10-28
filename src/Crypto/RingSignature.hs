@@ -23,7 +23,7 @@ hrm pR m = sha512Int $ encodePoint pR <> m
 
 
 sign :: PrivateKey -> [PublicKey] -> Message -> IO RingSignature
-sign prvKey@(PrivateKey k) pubKeys m = do
+sign prvKey pubKeys m = do
     ris <- replicateM (length pubKeys) generateNoncePair
     rs <- randomInteger 16
     let hRs' = hRs (map (unPublicNonce . snd) ris)
@@ -37,18 +37,15 @@ sign prvKey@(PrivateKey k) pubKeys m = do
     pubKeyhR pubKey pR = (pubKey, hrm pR m, pR)
     hRs = zipWith pubKeyhR pubKeys
 
-    hk = unpack $ sha512 k
-    lsbHashInt = fromBytes . pack $ drop b hk
-
-    s rs pRs ris = (rs + sum (map (unNonce . fst) ris) + hrm pRs m * lsbHashInt) `mod` l
-    pRs rs riAs = (rs `scalarMultiply` pB) <> inverse (mconcat $ map hrmA riAs)
+    s rs pRs ris = (rs + sum (map (unNonce . fst) ris) + hrm pRs m * privateKeyKey prvKey) `mod` l
+    pRs rs riAs = (rs `scalarMultiply` pG) <> inverse (mconcat $ map hrmA riAs)
       where
         hrmA (PublicKey pAi, _, pRi) = hrm pRi m `scalarMultiply` pAi
 
 
 verify :: [PublicKey] -> Message -> RingSignature -> Bool
 verify pubKeys m (RingSignature s hRs) =
-    all hEq hRs && s `scalarMultiply` pB == mconcat (zipWith rha (sort pubKeys) hRs)
+    all hEq hRs && s `scalarMultiply` pG == mconcat (zipWith rha (sort pubKeys) hRs)
   where
     hEq (h, pR) = h == hrm pR m
     rha (PublicKey pA) (h, pR) = pR <> h `scalarMultiply` pA
