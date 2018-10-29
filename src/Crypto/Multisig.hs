@@ -37,7 +37,7 @@ newtype PartialSignature = PartialSignature { unPartialSig :: Integer } deriving
 multisigPublicKey :: [PublicKey] -> PublicKey
 multisigPublicKey pubKeys = mconcat $ map delinearizePubkey pubKeys
   where
-    delinearizePubkey pubKey = PublicKey $ delinearCoeff pubKeys pubKey `scalarMultiply` publicKeyPoint pubKey
+    delinearizePubkey pubKey = PublicKey $ delinearCoeff pubKeys pubKey .* publicKeyPoint pubKey
 
 
 signMultisig :: PrivateKey  -- ^ Private key for partial signature
@@ -46,14 +46,10 @@ signMultisig :: PrivateKey  -- ^ Private key for partial signature
              -> [PublicKey] -- ^ All of the public keys
              -> Message     -- ^ Message to sign
              -> PartialSignature
-signMultisig privKey@(PrivateKey k) (Nonce r) (PublicNonce pR) pubKeys m = PartialSignature s
+signMultisig k (Nonce r) (PublicNonce pR) pubKeys m = PartialSignature s
   where
-    pubKey = publicKey privKey
-
-    h = unpack $ sha512 k
-    lsbHashInt = fromBytes . pack $ drop b h
-
-    s = (r + delinearCoeff pubKeys pubKey * hram pR (multisigPublicKey pubKeys) m * lsbHashInt) `mod` l
+    pubKey = publicKey k
+    s = (r + delinearCoeff pubKeys pubKey * hram pR (multisigPublicKey pubKeys) m * privateKeyKey k) `mod` l
 
 
 combineMultisig :: PublicNonce -> [PartialSignature] -> Signature
