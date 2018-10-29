@@ -38,14 +38,14 @@ sign prvKey pubKeys m = do
     hRs = zipWith pubKeyhR pubKeys
 
     s rs pRs ris = (rs + sum (map (unNonce . fst) ris) + hrm pRs m * privateKeyKey prvKey) `mod` l
-    pRs rs riAs = (rs `scalarMultiply` pG) <> inverse (mconcat $ map hrmA riAs)
+    pRs rs riAs = (rs .* pG) <> inverse (mconcat $ map hrmA riAs)
       where
-        hrmA (PublicKey pAi, _, pRi) = hrm pRi m `scalarMultiply` pAi
+        hrmA (PublicKey pAi, _, pRi) = hrm pRi m .* pAi
 
 
 verify :: [PublicKey] -> Message -> RingSignature -> Bool
 verify pubKeys m (RingSignature s hRs) =
-    all hEq hRs && s `scalarMultiply` pG == mconcat (zipWith rha (sort pubKeys) hRs)
+    all hEq hRs && s .* pG == mconcat (zipWith rha (sort pubKeys) hRs)
   where
     hEq (h, pR) = h == hrm pR m
-    rha (PublicKey pA) (h, pR) = pR <> h `scalarMultiply` pA
+    rha (PublicKey pA) (h, pR) = pR <> h .* pA
