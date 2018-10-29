@@ -14,29 +14,30 @@ import           Crypto.Multisig
 -- AOS Ring Signatures: https://www.iacr.org/cryptodb/archive/2002/ASIACRYPT/50/50.pdf
 -- Also: https://cryptoservices.github.io/cryptography/2017/07/21/Sigs.html
 
-data AOSRingSignature = AOSRingSignature
+data RingSignature = RingSignature
     { e0 :: Integer
     , ss :: [Integer]
     } deriving (Show, Eq)
 
 
-sign :: PrivateKey -> [PublicKey] -> Message -> IO AOSRingSignature
+sign :: PrivateKey -> [PublicKey] -> Message -> IO RingSignature
 sign prvKey pubKeys m
-    | publicKey prvKey `elem` pubKeys = sign' m prvKey . zip pubKeys <$> replicateM (length pubKeys) randIntZl
-    | otherwise = error "Can't sign without private key"
+    | publicKey prvKey `elem` pubKeys
+    = sign' m prvKey . zip pubKeys <$> replicateM (length pubKeys) randInt
+    | otherwise = error "Can't sign without key in pubkey set"
   where
-    randIntZl = (`mod` l) <$> randomInteger b
+    randInt = (`mod` l) <$> randomInteger b
 
 
-sign' :: Message -> PrivateKey -> [(PublicKey, Integer)] -> AOSRingSignature
-sign' m prvKey pubKeys = AOSRingSignature e0 ss
+sign' :: Message -> PrivateKey -> [(PublicKey, Integer)] -> RingSignature
+sign' m prvKey pubKeys = RingSignature e0 ss
   where
     n = length pubKeys
     pubKey = publicKey prvKey
 
     keyFirst f k = take n . dropWhile ((/= k) . f) . cycle
 
-    (_, a):restKeys = take n $ keyFirst fst pubKey pubKeys
+    (_, a):restKeys = keyFirst fst pubKey pubKeys
     ejp1 = h m $ a .* pG
 
     ejs = scanl eip1 (pubKey, ejp1) restKeys
@@ -53,8 +54,8 @@ sign' m prvKey pubKeys = AOSRingSignature e0 ss
     ss = map snd $ keyFirst fst firstKey $ (pubKey, sj):restKeys
 
 
-verify :: [PublicKey] -> Message -> AOSRingSignature -> Bool
-verify pubKeys m (AOSRingSignature e0 ss) = e0 == e0'
+verify :: [PublicKey] -> Message -> RingSignature -> Bool
+verify pubKeys m (RingSignature e0 ss) = e0 == e0'
   where
     n = length pubKeys
     eip1 ei (pk, si) = h m $ si .* pG <> ei .* publicKeyPoint pk
